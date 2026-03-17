@@ -8,16 +8,20 @@ import 'react-toastify/dist/ReactToastify.css';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./config/firebase";
 import { useEffect } from "react";
+import { useContext } from "react";
+import { AppContext } from "./context/AppContext";
 
 const App = () => {
 
   const navigate = useNavigate();
+  const {loadUserData} = useContext(AppContext);
 
 
   useEffect(() => {
-    onAuthStateChanged(auth,async(user)=>{
+    onAuthStateChanged(auth, async (user)=>{
       if(user){
         navigate('/chat');
+        await loadUserData(user.uid);
       }
       else{
         navigate('/');
