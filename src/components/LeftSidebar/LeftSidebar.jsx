@@ -2,26 +2,91 @@ import React from 'react';
 import './LeftSidebar.css';
 import assets from '../../assets/assets';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, query, where} from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { useContext } from 'react';
+import { AppContext } from '../../context/AppContext';
+import { useState } from 'react';
+import { arrayUnion, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
 
 const LeftSidebar = () => {
 
     const navigate = useNavigate();
+    const { userData,chatData } = useContext(AppContext);
+    const [user, setUser] = useState(null);
+    const [showSearch, setShowSearch] = useState(false);
 
-    const inputHandler = (e) => {
+    const inputHandler = async (e) => {
         try {
             const input = e.target.value;
-            const userRef = collection(db, 'users');
-            const q = query(userRef, where("username", "==", input.toLowerCase()));
-            const querySnap = await getDocs(q);
-            if(!querySnap.empty){
-                console.log(querySnap.docs[0].data());
-                
+            if (input) {
+                setShowSearch(true);
+                const userRef = collection(db, 'users');
+                const q = query(userRef, where("username", "==", input.toLowerCase()));
+                const querySnap = await getDocs(q);
+                if (!querySnap.empty && querySnap.docs[0].data().id !== userData.id) {
+                    let userExit = false;
+                    chatData.map((user)=>{
+                        if(user.rId === querySnap.docs[0].data().id){
+                            userExit = true;
+                        }
+                    })
+                    if(!userExit){
+                    setUser(querySnap.docs[0].data());
+                    }
+                }
+                else{
+                    setUser(null);
+                }
+            }
+            else{
+                setShowSearch(false);
             }
         } catch (error) {
+
+        }
+    }
+
+    const addChat= async()=>{
+        const messagesRef = collection(db, "messages");
+        const charsRef = collection(db, "chats");
+        try {
+            const newMessagesRef = doc(messagesRef);
+            await setDoc(newMessagesRef, {
+                createAt:serverTimestamp(),
+                messages:[]
+            })
+
+            await updateDoc(doc(charsRef, userData.id), {
+                chatsData: arrayUnion({
+                    messageId: newMessagesRef.id,
+                    lastMessage: "",
+                    rId: userData.id,
+                    updatedAt: Date.now(),
+                    messageSeen: true
+                })
+            })
+
+            await updateDoc(doc(charsRef, userData.id), {
+                chatsData: arrayUnion({
+                    messageId: newMessagesRef.id,
+                    lastMessage: "",
+                    rId: user.id,
+                    updatedAt: Date.now(),
+                    messageSeen: true
+                })
+            })
+        } catch (error) {
+            toast.error(error.message);
+            console.error(error);
             
         }
+    }
+
+    const setChat = async(item) => {
+        console.log(item);
+        
     }
 
     return (
@@ -33,7 +98,7 @@ const LeftSidebar = () => {
                         <div className="menu">
                             <img src={assets.menu_icon} alt="" />
                             <div className="sub-menu">
-                                <p onClick={()=> navigate('/profile')}>Edit Profile</p>
+                                <p onClick={() => navigate('/profile')}>Edit Profile</p>
                                 <hr />
                                 <p>Logout</p>
                             </div>
@@ -45,16 +110,22 @@ const LeftSidebar = () => {
                     </div>
                 </div>
                 <div className="ls-list">
-                    {Array(12).fill("").map((item,index)=>(
-                        <div key={index}className="friends">
-                        <img src={assets.profile_img} alt="" />
-                        <div>
-                            <p>Richard Sanford</p>
-                            <span>Hellow, How are you?</span>
-                        </div>
+                    {showSearch && user 
+                    ? <div onClick={addChat} className='friends add-user'>
+                        <img src={user.avatar} alt=""/>
+                        <p>{user.name}</p>
                     </div>
-                    ))}
-            </div>
+                    :chatsData?.map((item, index) => (
+                        <div onClick={()=>setChat(item)} key={index} className="friends">
+                            <img src={item.userData.avatar} alt="" />
+                            <div>
+                                <p>{item.userData.name}</p>
+                                <span>{item.lastMessage}</span>
+                            </div>
+                        </div>
+                    ))
+                    }
+                </div>
             </div>
         </div>
     )

@@ -5,6 +5,8 @@ import { getStorage } from "firebase/storage";
 import { getFirestore, setDoc, doc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { toast } from "react-toastify";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { signOut } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAQuvmV18hF6n-em6sdHZrNKaEXklfRXeE",

@@ -12,3 +12,7 @@
     display: grid;
     grid-template-columns: 1fr 2fr 1fr;
 }
+.loading{
+    color: white;
+    font-size: 50px;
+}
