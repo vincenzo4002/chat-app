@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { arrayUnion, updateDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
 
 const ChatBox = () => {
 
@@ -24,17 +26,95 @@ const ChatBox = () => {
                         createAt: new Date()
                     })
                 })
+
+                const userIDs = [chatUser.rId, userData.id];
+
+                userIDs.forEach(async (id)=>{
+                    const userChatRef = doc(db, 'chats', id);
+                    const userChatSnap = await getDoc(userChatRef);
+
+                    if(userChatSnapshots.exists()){
+                        const userChatData = userChatSnapshots.data();
+                        const chatIndex = userChatData.chatsData.findIndex((c) => c.messageId === messagesId);
+                        userChatData.chatsData[chatIndex].lastMessage = input.slice(0,30);
+                        userChatData.chatsData[chatIndex].updatedAt = Date.now();
+                        if(userChatData.chatsData[chatIndex].rId === userData.id){
+                            userChatData.chatsData[chatIndex].messageSeen = false;
+                        }
+                        await updateDoc(userChatRef, {
+                            chatsData: userChatData.chatsData
+                        })
+                    }
+                })
             }
         } catch (error) {
+            toast.error(error.message);
+        }
+        setinput("");
+    }
+
+    const sendImage = async (e) => {
+        try {
             
+            const fileUrl = await upload(e.target.files[0]);
+
+            if(fileUrl && messagesId){
+                await updateDoc(doc(db, 'messages', messagesId),{
+                    messages: arrayUnion({
+                        sId: userData.id,
+                        image:fileUrl,
+                        createAt: new Date()
+                    })
+                })
+
+                 const userIDs = [chatUser.rId, userData.id];
+
+                userIDs.forEach(async (id)=>{
+                    const userChatRef = doc(db, 'chats', id);
+                    const userChatSnap = await getDoc(userChatRef);
+
+                    if(userChatSnapshots.exists()){
+                        const userChatData = userChatSnapshots.data();
+                        const chatIndex = userChatData.chatsData.findIndex((c) => c.messageId === messagesId);
+                        userChatData.chatsData[chatIndex].lastMessage = "Image";
+                        userChatData.chatsData[chatIndex].updatedAt = Date.now();
+                        if(userChatData.chatsData[chatIndex].rId === userData.id){
+                            userChatData.chatsData[chatIndex].messageSeen = false;
+                        }
+                        await updateDoc(userChatRef, {
+                            chatsData: userChatData.chatsData
+                        })
+                    }
+                })
+
+
+
+            }
+
+        } catch (error) {
+            toast.error(error.message);
         }
     }
+
+
+    const convertTimestamp = (timestamp) => {
+        let date = timestamp.toDate();
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        if (hours > 12) {
+            return hours - 12 + ":" + minutes + " PM";
+        }
+        else {
+        return hours + ":" + minutes + " AM";
+        }
+    }
+
 
     useEffect(() => {
         if(messagesId) {
             const unSub = onSnapshot(doc(db, 'messages', messagesId), (res) => {
                 setMessages(res.data().messages.reverse());
-                console.log(res.data().messages.reverse());
+                
                 
             })
             return () => {
@@ -54,36 +134,25 @@ const ChatBox = () => {
 
 
             <div className="chat-msg">
-                <div className="s-msg">
-                    <p className="msg">Lorem ipsum is placeholder text commonly used in ..</p>
+
+                {messages.map((msg, index) => (
+                    <div className={msg.sId === userData.id ? "s-msg" : "r-msg"} key={index}>
+                    <p className="msg">{msg.text}</p>
                     <div>
-                        <img src={assets.profile_img} alt="" />
-                        <p>2:30 PM</p>
+                        <img src={msg.sId === userData.id ? userData.avatar : chatUser.userData.avatar} alt="" />
+                        <p>{convertTimestamp(msg.createAt)}</p>
                     </div>
                 </div>
-                <div className="s-msg">
-                    <img src={assets.pic1} className="msg-img" alt="" />
-                    <div>
-                        <img src={assets.profile_img} alt="" />
-                        <p>2:30 PM</p>
-                    </div>
+                ))}
                 </div>
-                <div className="r-msg">
-                    <p className="msg">Lorem ipsum is placeholder text commonly used in ..</p>
-                    <div>
-                        <img src={assets.profile_img} alt="" />
-                        <p>2:30 PM</p>
-                    </div>
-                </div>
-            </div>
 
             <div className="chat-input">
                 <input onChange={(e)=>setinput(e.target.value)} value={input} type="text" placeholder='Send a message' />
-                <input type="file" id='image' accept='image/png, image/jpeg' hidden />
+                <input onChange={sendImage} type="file" id='image' accept='image/png, image/jpeg' hidden />
                 <label htmlFor="image">
                     <img src={assets.gallery_icon} alt="" />
                 </label>
-                <img src={assets.send_button} alt="" />
+                <img onClick={sendMessage} src={assets.send_button} alt="" />
             </div>
         </div>
     )
