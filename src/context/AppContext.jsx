@@ -31,7 +31,7 @@ const AppContextProvider = (props) => {
                 lastSeen: Date.now()
              })
              setInterval(async () => {
-                if(auth.chatUser){
+                if(auth.currentUser){
                     await updateDoc(userRef, { 
                          lastSeen: Date.now()
                         })
@@ -65,7 +65,10 @@ const AppContextProvider = (props) => {
     const value = {
         userData,setUserData,
         chatData,setChatData,
-        loadUserData
+        loadUserData,
+        messages,setMessages,
+        messagesId,setMessagesId,
+        chatUser,setChatUser
     }
 
     return(
